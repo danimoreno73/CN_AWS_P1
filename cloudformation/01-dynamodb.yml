@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Tabla DynamoDB para la aplicación de notas'
+
+Parameters:
+  TableName:
+    Type: String
+    Default: Notes
+    Description: Nombre de la tabla DynamoDB
+
+Resources:
+  NotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: note_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: note_id
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: NotesApp
+
+Outputs:
+  TableName:
+    Description: Nombre de la tabla
+    Value: !Ref NotesTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+  
+  TableArn:
+    Description: ARN de la tabla
+    Value: !GetAtt NotesTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TableArn'

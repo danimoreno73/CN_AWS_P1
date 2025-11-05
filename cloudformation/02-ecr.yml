@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Repositorio ECR para la aplicación de notas'
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Default: notes-app
+    Description: Nombre del repositorio ECR
+
+Resources:
+  NotesECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: false
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only last 5 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 5
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: NotesApp
+
+Outputs:
+  RepositoryName:
+    Description: Nombre del repositorio
+    Value: !Ref NotesECRRepository
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryName'
+  
+  RepositoryUri:
+    Description: URI del repositorio
+    Value: !GetAtt NotesECRRepository.RepositoryUri
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryUri'
+  
+  RepositoryArn:
+    Description: ARN del repositorio
+    Value: !GetAtt NotesECRRepository.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryArn'
