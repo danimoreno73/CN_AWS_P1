@@ -6,7 +6,7 @@ from .db import Database
 from .dynamodb_db import DynamoDBDatabase
 
 
-def get_database() -> Database:
+def get_db() -> Database:
     """
     Retorna una instancia de la base de datos según la configuración
     """
