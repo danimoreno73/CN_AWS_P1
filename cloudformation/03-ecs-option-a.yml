@@ -138,7 +138,7 @@ Resources:
       ServiceName: notes-service
       Cluster: !Ref ECSCluster
       TaskDefinition: !Ref TaskDefinition
-      DesiredCount: 2
+      DesiredCount: 1
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:

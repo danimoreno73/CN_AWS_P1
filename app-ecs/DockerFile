@@ -2,22 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copiar requirements e instalar dependencias
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
-COPY app/ ./
+COPY main.py .
 
-# Variables de entorno por defecto
 ENV PORT=8080
 ENV DB_TYPE=dynamodb
 ENV DB_DYNAMONAME=Notes
 ENV AWS_REGION=us-east-1
 ENV PYTHONUNBUFFERED=1
 
-# Exponer puerto
 EXPOSE 8080
 
-# Comando para ejecutar la aplicación
 CMD ["python", "main.py"]
