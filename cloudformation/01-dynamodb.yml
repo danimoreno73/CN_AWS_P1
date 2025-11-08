@@ -19,9 +19,6 @@ Resources:
       KeySchema:
         - AttributeName: note_id
           KeyType: HASH
-      Tags:
-        - Key: Project
-          Value: NotesApp
 
 Outputs:
   TableName:
