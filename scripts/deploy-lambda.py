@@ -100,34 +100,7 @@ def deploy_stack():
         print(f"Error obteniendo Account ID: {e}")
         print("Asegúrate de que tus credenciales de AWS son correctas.")
         sys.exit(1)
-        
-    # Subir ZIPs a S3
-    print("\nSubiendo código Lambda a S3...")
-    s3_client = boto3.client('s3', region_name=REGION)
-    
-    # Nombre del bucket (debe coincidir con el CloudFormation)
-    bucket_name = f'notes-lambda-deployment-{account_id}'
-    
-    # Crear bucket si no existe
-    try:
-        s3_client.head_bucket(Bucket=bucket_name)
-        print(f"  Bucket {bucket_name} ya existe")
-    except:
-        print(f"  Creando bucket {bucket_name}...")
-        s3_client.create_bucket(Bucket=bucket_name)
-    
-    # Subir cada ZIP
-    lambda_packages_dir = os.path.join(os.path.dirname(__file__), '..', 'lambda-packages')
-    functions = ['create_note', 'get_note', 'list_notes', 'update_note', 'delete_note']
-    
-    for func in functions:
-        zip_file = os.path.join(lambda_packages_dir, f'{func}.zip')
-        s3_key = f'functions/{func}.zip'
-        
-        print(f"  Subiendo {func}.zip...")
-        s3_client.upload_file(zip_file, bucket_name, s3_key)
-    
-    print("✓ Código Lambda subido a S3\n")
+
 
     # Verificar si stack existe
     stack_exists = False
