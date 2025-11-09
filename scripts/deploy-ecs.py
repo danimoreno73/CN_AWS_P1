@@ -6,6 +6,7 @@ Uso: python scripts/deploy-ecs.py
 
 import boto3
 import sys
+import time
 
 STACK_NAME = "notes-ecs-option-a"
 TEMPLATE_FILE = "cloudformation/03-ecs-option-a.yml"
@@ -97,12 +98,33 @@ def main():
         pass
     
     # Parámetros
+    stage_name = f"v{int(time.time())}"
+    print(f"Desplegando en Stage: {stage_name}\n")
+    
+    # Parámetros
+    stage_name = f"v{int(time.time())}"  # Ej: v1699475123
+    
     parameters = [
-        {'ParameterKey': 'VpcId', 'ParameterValue': vpc_id},
+        {
+            'ParameterKey': 'VpcId',
+            'ParameterValue': vpc_id
+        },
         {'ParameterKey': 'SubnetIds', 'ParameterValue': ','.join(subnet_ids)},
-        {'ParameterKey': 'ImageUri', 'ParameterValue': image_uri},
-        {'ParameterKey': 'TableName', 'ParameterValue': 'Notes'}
+        {
+            'ParameterKey': 'ImageUri',
+            'ParameterValue': image_uri
+        },
+        {
+            'ParameterKey': 'TableName',
+            'ParameterValue': 'Notes'
+        },
+        {
+            'ParameterKey': 'StageName',
+            'ParameterValue': stage_name
+        }
     ]
+    
+    print(f"Stage name: {stage_name}")
     
     try:
         if not stack_exists:

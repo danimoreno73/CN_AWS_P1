@@ -1,41 +1,34 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Opcion A - ECS Fargate con API Gateway para aplicacion de notas'
+Description: 'ECS Fargate con API Gateway (Opción A) - Optimizado'
 
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
     Description: VPC donde desplegar ECS
-
+  
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: Subnets privadas para ECS tasks (minimo 2)
-
+    Description: Subnets para ECS tasks (mínimo 2)
+  
   ImageUri:
     Type: String
-    Description: URI completa de la imagen Docker en ECR
-    Default: '123456789012.dkr.ecr.us-east-1.amazonaws.com/notes-app:latest'
-
+    Description: URI de la imagen Docker en ECR
+  
   TableName:
     Type: String
     Default: Notes
     Description: Nombre de la tabla DynamoDB
+  
+  StageName:
+    Type: String
+    Default: prod
+    Description: Nombre del stage de API Gateway
 
 Resources:
-  # Security Groups
-  ECSSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for ECS tasks
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          SourceSecurityGroupId: !Ref NLBSecurityGroup
-      SecurityGroupEgress:    
-        - IpProtocol: -1      
-          CidrIp: 0.0.0.0/0   
-
+  # ==========================================
+  # SECURITY GROUPS
+  # ==========================================
+  
   NLBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -47,55 +40,43 @@ Resources:
           ToPort: 8080
           CidrIp: 0.0.0.0/0
 
-
-  # Network Load Balancer
-  NetworkLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      Name: notes-nlb
-      Type: network
-      Scheme: internal
-      Subnets: !Ref SubnetIds
-
-  NLBTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: notes-tg
-      Port: 8080
-      Protocol: TCP
+      GroupDescription: Security group for ECS tasks
       VpcId: !Ref VpcId
-      TargetType: ip
-      HealthCheckEnabled: true
-      HealthCheckProtocol: HTTP
-      HealthCheckPath: /health
-      HealthCheckIntervalSeconds: 30
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 2
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
 
-  NLBListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref NetworkLoadBalancer
-      Port: 8080
-      Protocol: TCP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref NLBTargetGroup
-
-  # ECS Cluster
-  ECSCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: notes-cluster
-
-  # CloudWatch Log Group
+  # ==========================================
+  # CLOUDWATCH LOGS
+  # ==========================================
+  
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: /ecs/notes-service
       RetentionInDays: 7
 
-  # ECS Task Definition
+  # ==========================================
+  # ECS CLUSTER
+  # ==========================================
+  
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: notes-cluster
+
+  # ==========================================
+  # ECS TASK DEFINITION
+  # ==========================================
+  
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -105,8 +86,8 @@ Resources:
         - FARGATE
       Cpu: 256
       Memory: 512
-      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'   
-      TaskRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'  
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      TaskRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
       ContainerDefinitions:
         - Name: notes-container
           Image: !Ref ImageUri
@@ -130,7 +111,50 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
 
-  # ECS Service
+  # ==========================================
+  # NETWORK LOAD BALANCER
+  # ==========================================
+  
+  NetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: notes-nlb
+      Type: network
+      Scheme: internal
+      Subnets: !Ref SubnetIds
+
+  NLBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: notes-tg
+      Port: 8080
+      Protocol: TCP
+      VpcId: !Ref VpcId
+      TargetType: ip
+      HealthCheckEnabled: true
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+
+  NLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref NetworkLoadBalancer
+      Port: 8080
+      Protocol: TCP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref NLBTargetGroup
+
+  # ==========================================
+  # ECS SERVICE
+  # ==========================================
+  
   ECSService:
     Type: AWS::ECS::Service
     DependsOn: NLBListener
@@ -140,6 +164,7 @@ Resources:
       TaskDefinition: !Ref TaskDefinition
       DesiredCount: 1
       LaunchType: FARGATE
+      HealthCheckGracePeriodSeconds: 30
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
@@ -150,54 +175,35 @@ Resources:
         - ContainerName: notes-container
           ContainerPort: 8080
           TargetGroupArn: !Ref NLBTargetGroup
-      HealthCheckGracePeriodSeconds: 60
+
+  # ==========================================
+  # API GATEWAY
+  # ==========================================
+  
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: notes-api
+      Description: API Gateway para Notes API
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: notes-api-key
+      Enabled: true
 
   # VPC Link
   VpcLink:
     Type: AWS::ApiGateway::VpcLink
     Properties:
-      Name: notes-vpc-link
+      Name: notes-vpclink
       TargetArns:
         - !Ref NetworkLoadBalancer
 
-  # API Gateway
-  RestApi:
-    Type: AWS::ApiGateway::RestApi
-    Properties:
-      Name: NotesAPI
-      Description: API Gateway para aplicacion de notas (Opcion A - ECS)
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
-
-  # API Key
-  ApiKey:
-    Type: AWS::ApiGateway::ApiKey
-    Properties:
-      Name: NotesAPIKey
-      Enabled: true
-
-  # Usage Plan
-  UsagePlan:
-    Type: AWS::ApiGateway::UsagePlan
-    DependsOn: ApiStage
-    Properties:
-      UsagePlanName: NotesUsagePlan
-      ApiStages:
-        - ApiId: !Ref RestApi
-          Stage: prod
-      Throttle:
-        RateLimit: 100
-        BurstLimit: 200
-
-  UsagePlanKey:
-    Type: AWS::ApiGateway::UsagePlanKey
-    Properties:
-      KeyId: !Ref ApiKey
-      KeyType: API_KEY
-      UsagePlanId: !Ref UsagePlan
-
-  # Resources y Methods
+  # Resources
   NotesResource:
     Type: AWS::ApiGateway::Resource
     Properties:
@@ -211,6 +217,79 @@ Resources:
       RestApiId: !Ref RestApi
       ParentId: !Ref NotesResource
       PathPart: '{id}'
+
+  # CORS OPTIONS
+  OptionsNotesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NotesResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  OptionsNoteIdMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NoteIdResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # GET /notes
+  GetNotesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NotesResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: HTTP_PROXY
+        IntegrationHttpMethod: GET
+        Uri: !Sub 'http://${NetworkLoadBalancer.DNSName}:8080/notes'
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref VpcLink
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
 
   # POST /notes
   PostNotesMethod:
@@ -229,30 +308,10 @@ Resources:
         ConnectionId: !Ref VpcLink
         IntegrationResponses:
           - StatusCode: 201
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
       MethodResponses:
         - StatusCode: 201
-          ResponseModels:
-            application/json: Empty
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Origin: true
-
-  # GET /notes
-  GetNotesMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestApi
-      ResourceId: !Ref NotesResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      ApiKeyRequired: true
-      Integration:
-        Type: HTTP_PROXY
-        IntegrationHttpMethod: GET
-        Uri: !Sub 'http://${NetworkLoadBalancer.DNSName}:8080/notes'
-        ConnectionType: VPC_LINK
-        ConnectionId: !Ref VpcLink
-      MethodResponses:
-        - StatusCode: 200
           ResponseParameters:
             method.response.header.Access-Control-Allow-Origin: true
 
@@ -275,6 +334,10 @@ Resources:
         ConnectionId: !Ref VpcLink
         RequestParameters:
           integration.request.path.id: method.request.path.id
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
       MethodResponses:
         - StatusCode: 200
           ResponseParameters:
@@ -299,6 +362,10 @@ Resources:
         ConnectionId: !Ref VpcLink
         RequestParameters:
           integration.request.path.id: method.request.path.id
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
       MethodResponses:
         - StatusCode: 200
           ResponseParameters:
@@ -323,104 +390,63 @@ Resources:
         ConnectionId: !Ref VpcLink
         RequestParameters:
           integration.request.path.id: method.request.path.id
+        IntegrationResponses:
+          - StatusCode: 204
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
       MethodResponses:
         - StatusCode: 204
           ResponseParameters:
             method.response.header.Access-Control-Allow-Origin: true
 
-  # OPTIONS para CORS (ambos recursos)
-  OptionsNotesMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestApi
-      ResourceId: !Ref NotesResource
-      HttpMethod: OPTIONS
-      AuthorizationType: NONE
-      Integration:
-        Type: MOCK
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-            ResponseTemplates:
-              application/json: ''
-        RequestTemplates:
-          application/json: '{"statusCode": 200}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
-
-  OptionsNoteIdMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref RestApi
-      ResourceId: !Ref NoteIdResource
-      HttpMethod: OPTIONS
-      AuthorizationType: NONE
-      Integration:
-        Type: MOCK
-        IntegrationResponses:
-          - StatusCode: 200
-            ResponseParameters:
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
-              method.response.header.Access-Control-Allow-Methods: "'GET,PUT,DELETE,OPTIONS'"
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-            ResponseTemplates:
-              application/json: ''
-        RequestTemplates:
-          application/json: '{"statusCode": 200}'
-      MethodResponses:
-        - StatusCode: 200
-          ResponseParameters:
-            method.response.header.Access-Control-Allow-Headers: true
-            method.response.header.Access-Control-Allow-Methods: true
-            method.response.header.Access-Control-Allow-Origin: true
-
-  # Deployment y Stage
+  # Deployment
   ApiDeployment:
     Type: AWS::ApiGateway::Deployment
     DependsOn:
-      - PostNotesMethod
       - GetNotesMethod
+      - PostNotesMethod
       - GetNoteMethod
       - PutNoteMethod
       - DeleteNoteMethod
-      - OptionsNotesMethod
-      - OptionsNoteIdMethod
     Properties:
       RestApiId: !Ref RestApi
+      StageName: !Ref StageName 
 
-  ApiStage:
-    Type: AWS::ApiGateway::Stage
+  # Usage Plan
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ApiDeployment
     Properties:
-      RestApiId: !Ref RestApi
-      DeploymentId: !Ref ApiDeployment
-      StageName: prod
+      UsagePlanName: notes-usage-plan
+      ApiStages:
+        - ApiId: !Ref RestApi
+          Stage: !Ref StageName
+
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
 
 Outputs:
   ApiUrl:
     Description: URL del API Gateway
-    Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
-    Export:
-      Name: !Sub '${AWS::StackName}-ApiUrl'
-
+    Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}'
+  
   ApiKey:
-    Description: API Key para autenticacion
+    Description: ID de la API Key (usar GetApiKey para obtener el valor)
     Value: !Ref ApiKey
-
+  
   ClusterName:
     Description: Nombre del cluster ECS
     Value: !Ref ECSCluster
-
+  
   ServiceName:
     Description: Nombre del servicio ECS
     Value: !GetAtt ECSService.Name
-
+  
   NLBDnsName:
     Description: DNS del Network Load Balancer
     Value: !GetAtt NetworkLoadBalancer.DNSName
