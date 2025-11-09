@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes App - Frontend de Prueba</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .config-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .config-panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .config-form {
+            display: grid;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .create-form textarea,
+        .update-form textarea {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .create-form textarea:focus,
+        .update-form textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .notes-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .note-card {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .note-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .note-card h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .note-card p {
+            color: #4a5568;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .note-tags {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .tag {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .note-meta {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .note-actions button {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #a0aec0;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📝 Notes App</h1>
+            <p>Práctica AWS - Frontend de Prueba</p>
+        </div>
+
+        <!-- Configuration Panel -->
+        <div class="config-panel">
+            <h2>⚙️ Configuración de API</h2>
+            <form class="config-form" id="configForm">
+                <div class="form-group">
+                    <label for="apiUrl">API URL:</label>
+                    <input 
+                        type="text" 
+                        id="apiUrl" 
+                        placeholder="https://abc123.execute-api.us-east-1.amazonaws.com/prod"
+                        required
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="apiKey">API Key:</label>
+                    <input 
+                        type="text" 
+                        id="apiKey" 
+                        placeholder="Tu-API-Key-Aqui"
+                        required
+                    >
+                </div>
+                <button type="submit" class="btn btn-primary">💾 Guardar y Conectar</button>
+            </form>
+            <div class="status" id="configStatus"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Create/Update Panel -->
+            <div class="panel">
+                <h2>✍️ Crear / Editar Nota</h2>
+                
+                <form class="create-form" id="noteForm">
+                    <input type="hidden" id="editingNoteId">
+                    
+                    <div class="form-group">
+                        <label for="noteTitle">Título:</label>
+                        <input 
+                            type="text" 
+                            id="noteTitle" 
+                            placeholder="Título de la nota"
+                            maxlength="200"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noteContent">Contenido:</label>
+                        <textarea 
+                            id="noteContent" 
+                            rows="6" 
+                            placeholder="Escribe el contenido aquí..."
+                            maxlength="10000"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="noteTags">Tags (separados por comas):</label>
+                        <input 
+                            type="text" 
+                            id="noteTags" 
+                            placeholder="aws, lambda, cloud"
+                        >
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-success" id="submitBtn">
+                            ➕ Crear Nota
+                        </button>
+                        <button type="button" class="btn btn-warning" id="cancelBtn" style="display: none;">
+                            ❌ Cancelar
+                        </button>
+                    </div>
+                </form>
+
+                <div class="status" id="formStatus"></div>
+            </div>
+
+            <!-- Notes List Panel -->
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2>📋 Mis Notas</h2>
+                    <button class="btn btn-primary" onclick="loadNotes()">🔄 Recargar</button>
+                </div>
+                
+                <div class="notes-list" id="notesList">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let apiUrl = '';
+        let apiKey = '';
+        let isEditing = false;
+
+        // Load saved config from localStorage
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedUrl = localStorage.getItem('apiUrl');
+            const savedKey = localStorage.getItem('apiKey');
+            
+
+            if (savedUrl) document.getElementById('apiUrl').value = savedUrl;
+            if (savedKey) document.getElementById('apiKey').value = savedKey;
+            
+
+            if (savedUrl && savedKey) {
+                apiUrl = savedUrl;
+                apiKey = savedKey;
+                loadNotes();
+            }
+        });
+
+        // Save configuration
+        document.getElementById('configForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            apiUrl = document.getElementById('apiUrl').value.trim();
+            apiKey = document.getElementById('apiKey').value.trim();
+            
+
+            // Remove trailing slash
+            if (apiUrl.endsWith('/')) {
+                apiUrl = apiUrl.slice(0, -1);
+            }
+
+            // Save to localStorage
+            localStorage.setItem('apiUrl', apiUrl);
+            localStorage.setItem('apiKey', apiKey);
+           
+
+            showStatus('configStatus', 'Configuración guardada correctamente', 'success');
+            loadNotes();
+        });
+
+        // Load notes
+        async function loadNotes() {
+            const notesList = document.getElementById('notesList');
+            notesList.innerHTML = '<div class="loader"></div>';
+
+            try {
+                const response = await fetch(`${apiUrl}/notes`, {
+                    headers: {
+                        'x-api-key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const notes = await response.json();
+
+                if (notes.length === 0) {
+                    notesList.innerHTML = `
+                        <div class="empty-state">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                </path>
+                            </svg>
+                            <h3>No hay notas</h3>
+                            <p>Crea tu primera nota usando el formulario</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Sort by created_at (newest first)
+                notes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                notesList.innerHTML = notes.map(note => `
+                    <div class="note-card">
+                        <h3>${escapeHtml(note.title)}</h3>
+                        <p>${escapeHtml(note.content)}</p>
+                        ${note.tags && note.tags.length > 0 ? `
+                            <div class="note-tags">
+                                ${note.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        <div class="note-meta">
+                            <div>📅 Creado: ${formatDate(note.created_at)}</div>
+                            <div>🔄 Actualizado: ${formatDate(note.updated_at)}</div>
+                            <div>🆔 ID: ${note.note_id}</div>
+                        </div>
+                        <div class="note-actions">
+                            <button class="btn btn-warning" onclick="editNote('${note.note_id}')">
+                                ✏️ Editar
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteNote('${note.note_id}')">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                notesList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>❌ Error al cargar notas</h3>
+                        <p>${error.message}</p>
+                        <p>Verifica tu configuración de API</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Create or update note
+        document.getElementById('noteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('noteTitle').value.trim();
+            const content = document.getElementById('noteContent').value.trim();
+            const tagsInput = document.getElementById('noteTags').value.trim();
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+            const editingId = document.getElementById('editingNoteId').value;
+
+            const noteData = { title, content, tags };
+
+            try {
+                let response;
+
+                if (isEditing && editingId) {
+                    // Update
+                    response = await fetch(`${apiUrl}/notes/${editingId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': apiKey
+                        },
+                        body: JSON.stringify(noteData)
+                    });
+                } else {
+                    // Create
+                    response = await fetch(`${apiUrl}/notes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': apiKey
+                        },
+                        body: JSON.stringify(noteData)
+                    });
+                }
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                showStatus('formStatus', 
+                    isEditing ? 'Nota actualizada correctamente' : 'Nota creada correctamente', 
+                    'success'
+                );
+
+                // Reset form
+                document.getElementById('noteForm').reset();
+                document.getElementById('editingNoteId').value = '';
+                isEditing = false;
+                document.getElementById('submitBtn').textContent = '➕ Crear Nota';
+                document.getElementById('cancelBtn').style.display = 'none';
+
+                // Reload notes
+                loadNotes();
+
+            } catch (error) {
+                showStatus('formStatus', `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Edit note
+        async function editNote(noteId) {
+            try {
+                const response = await fetch(`${apiUrl}/notes/${noteId}`, {
+                    headers: {
+                        'x-api-key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const note = await response.json();
+
+                // Fill form
+                document.getElementById('noteTitle').value = note.title;
+                document.getElementById('noteContent').value = note.content;
+                document.getElementById('noteTags').value = note.tags ? note.tags.join(', ') : '';
+                document.getElementById('editingNoteId').value = noteId;
+
+                // Change button
+                isEditing = true;
+                document.getElementById('submitBtn').textContent = '💾 Actualizar Nota';
+                document.getElementById('cancelBtn').style.display = 'inline-block';
+
+                // Scroll to form
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            } catch (error) {
+                alert(`Error al cargar nota: ${error.message}`);
+            }
+        }
+
+        // Cancel edit
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            document.getElementById('noteForm').reset();
+            document.getElementById('editingNoteId').value = '';
+            isEditing = false;
+            document.getElementById('submitBtn').textContent = '➕ Crear Nota';
+            document.getElementById('cancelBtn').style.display = 'none';
+        });
+
+        // Delete note
+        async function deleteNote(noteId) {
+            if (!confirm('¿Estás seguro de eliminar esta nota?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/notes/${noteId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'x-api-key': apiKey
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                loadNotes();
+
+            } catch (error) {
+                alert(`Error al eliminar: ${error.message}`);
+            }
+        }
+
+        // Helper functions
+        function showStatus(elementId, message, type) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    </script>
+</body>
+</html>

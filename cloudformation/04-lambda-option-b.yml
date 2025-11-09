@@ -31,8 +31,11 @@ Resources:
           TABLE_NAME: !Ref TableName
           REGION: !Ref AWS::Region
       Code:
-        S3Bucket: !Ref DeploymentBucket
-        S3Key: functions/create_note.zip
+        ZipFile: |
+          import json
+          def handler(event, context):
+            print("Función creada. El código real se subirá en breve.")
+            return {"statusCode": 501, "body": json.dumps("Not Implemented")}
 
   # Lambda Function 2: Get Note
   GetNoteFunction:
@@ -49,8 +52,11 @@ Resources:
           TABLE_NAME: !Ref TableName
           REGION: !Ref AWS::Region
       Code:
-        S3Bucket: !Ref DeploymentBucket
-        S3Key: functions/get_note.zip
+        ZipFile: |
+          import json
+          def handler(event, context):
+            print("Función creada. El código real se subirá en breve.")
+            return {"statusCode": 501, "body": json.dumps("Not Implemented")}
 
   # Lambda Function 3: List Notes
   ListNotesFunction:
@@ -67,8 +73,11 @@ Resources:
           TABLE_NAME: !Ref TableName
           REGION: !Ref AWS::Region
       Code:
-        S3Bucket: !Ref DeploymentBucket
-        S3Key: functions/list_notes.zip
+        ZipFile: |
+          import json
+          def handler(event, context):
+            print("Función creada. El código real se subirá en breve.")
+            return {"statusCode": 501, "body": json.dumps("Not Implemented")}
 
   # Lambda Function 4: Update Note
   UpdateNoteFunction:
@@ -85,8 +94,11 @@ Resources:
           TABLE_NAME: !Ref TableName
           REGION: !Ref AWS::Region
       Code:
-        S3Bucket: !Ref DeploymentBucket
-        S3Key: functions/update_note.zip
+        ZipFile: |
+          import json
+          def handler(event, context):
+            print("Función creada. El código real se subirá en breve.")
+            return {"statusCode": 501, "body": json.dumps("Not Implemented")}
 
   # Lambda Function 5: Delete Note
   DeleteNoteFunction:
@@ -103,8 +115,11 @@ Resources:
           TABLE_NAME: !Ref TableName
           REGION: !Ref AWS::Region
       Code:
-        S3Bucket: !Ref DeploymentBucket
-        S3Key: functions/delete_note.zip
+        ZipFile: |
+          import json
+          def handler(event, context):
+            print("Función creada. El código real se subirá en breve.")
+            return {"statusCode": 501, "body": json.dumps("Not Implemented")}
 
   # Permisos para API Gateway invocar Lambdas
   CreateNotePermission:

@@ -7,10 +7,8 @@ import boto3
 from decimal import Decimal
 import sys
 
-# Añadir shared al path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from utils import create_response
+from shared.models import NoteCreate
+from shared.utils import create_response, parse_json_body
 
 # Cliente DynamoDB
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('REGION', 'us-east-1'))
