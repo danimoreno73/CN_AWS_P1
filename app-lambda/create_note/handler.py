@@ -17,7 +17,7 @@ from models import NoteCreate
 from utils import create_response, parse_json_body
 
 # Cliente DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('REGION', 'us-east-1'))
 table_name = os.environ.get('TABLE_NAME', 'Notes')
 table = dynamodb.Table(table_name)
 
@@ -38,11 +38,12 @@ def lambda_handler(event, context):
         timestamp = datetime.utcnow().isoformat() + 'Z'
         
         # Crear item
+        note_dict = note_data.dict()
         item = {
             'note_id': note_id,
-            'title': note_data.title,
-            'content': note_data.content,
-            'tags': note_data.tags,
+            'title': note_dict['title'],
+            'content': note_dict['content'],
+            'tags': note_dict['tags'],
             'created_at': timestamp,
             'updated_at': timestamp
         }

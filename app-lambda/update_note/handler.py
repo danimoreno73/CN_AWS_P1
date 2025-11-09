@@ -15,7 +15,7 @@ from models import NoteUpdate
 from utils import create_response, parse_json_body
 
 # Cliente DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('REGION', 'us-east-1'))
 table_name = os.environ.get('TABLE_NAME', 'Notes')
 table = dynamodb.Table(table_name)
 
@@ -46,20 +46,22 @@ def lambda_handler(event, context):
         
         # Construir expresión de actualización
         timestamp = datetime.utcnow().isoformat() + 'Z'
+        update_dict = note_data.dict(exclude_unset=True)  # Solo campos enviados
+        
         update_expression = "SET updated_at = :updated_at"
         expression_values = {':updated_at': timestamp}
         
-        if note_data.title is not None:
+        if 'title' in update_dict:
             update_expression += ", title = :title"
-            expression_values[':title'] = note_data.title
+            expression_values[':title'] = update_dict['title']
         
-        if note_data.content is not None:
+        if 'content' in update_dict:
             update_expression += ", content = :content"
-            expression_values[':content'] = note_data.content
+            expression_values[':content'] = update_dict['content']
         
-        if note_data.tags is not None:
+        if 'tags' in update_dict:
             update_expression += ", tags = :tags"
-            expression_values[':tags'] = note_data.tags
+            expression_values[':tags'] = update_dict['tags']
         
         # Actualizar en DynamoDB
         response = table.update_item(

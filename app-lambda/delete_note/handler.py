@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 from utils import create_response
 
 # Cliente DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('REGION', 'us-east-1'))
 table_name = os.environ.get('TABLE_NAME', 'Notes')
 table = dynamodb.Table(table_name)
 

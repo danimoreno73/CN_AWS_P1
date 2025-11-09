@@ -1,0 +1,407 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Opcion B - Lambda con API Gateway para aplicacion de notas'
+
+Parameters:
+  TableName:
+    Type: String
+    Default: Notes
+    Description: Nombre de la tabla DynamoDB
+
+Resources:
+  # Bucket S3 para código Lambda (temporal)
+  DeploymentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'notes-lambda-deployment-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+
+  # Lambda Function 1: Create Note
+  CreateNoteFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CreateNoteFunction
+      Runtime: python3.11
+      Handler: handler.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          REGION: !Ref AWS::Region
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: functions/create_note.zip
+
+  # Lambda Function 2: Get Note
+  GetNoteFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetNoteFunction
+      Runtime: python3.11
+      Handler: handler.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          REGION: !Ref AWS::Region
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: functions/get_note.zip
+
+  # Lambda Function 3: List Notes
+  ListNotesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ListNotesFunction
+      Runtime: python3.11
+      Handler: handler.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          REGION: !Ref AWS::Region
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: functions/list_notes.zip
+
+  # Lambda Function 4: Update Note
+  UpdateNoteFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: UpdateNoteFunction
+      Runtime: python3.11
+      Handler: handler.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          REGION: !Ref AWS::Region
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: functions/update_note.zip
+
+  # Lambda Function 5: Delete Note
+  DeleteNoteFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: DeleteNoteFunction
+      Runtime: python3.11
+      Handler: handler.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/LabRole'
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          REGION: !Ref AWS::Region
+      Code:
+        S3Bucket: !Ref DeploymentBucket
+        S3Key: functions/delete_note.zip
+
+  # Permisos para API Gateway invocar Lambdas
+  CreateNotePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CreateNoteFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*'
+
+  GetNotePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetNoteFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*'
+
+  ListNotesPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ListNotesFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*'
+
+  UpdateNotePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref UpdateNoteFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*'
+
+  DeleteNotePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DeleteNoteFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*'
+
+  # API Gateway REST API
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: NotesAPI-Lambda
+      Description: API Gateway para aplicacion de notas (Opcion B - Lambda)
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Key
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: NotesAPIKey-Lambda
+      Enabled: true
+
+  # Usage Plan
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ApiStage
+    Properties:
+      UsagePlanName: NotesUsagePlan-Lambda
+      ApiStages:
+        - ApiId: !Ref RestApi
+          Stage: prod
+      Throttle:
+        RateLimit: 100
+        BurstLimit: 200
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+  # Resources
+  NotesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: notes
+
+  NoteIdResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !Ref NotesResource
+      PathPart: '{id}'
+
+  # POST /notes
+  PostNotesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NotesResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateNoteFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 201
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # GET /notes
+  GetNotesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NotesResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ListNotesFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # GET /notes/{id}
+  GetNoteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NoteIdResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      RequestParameters:
+        method.request.path.id: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetNoteFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # PUT /notes/{id}
+  PutNoteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NoteIdResource
+      HttpMethod: PUT
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      RequestParameters:
+        method.request.path.id: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateNoteFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # DELETE /notes/{id}
+  DeleteNoteMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NoteIdResource
+      HttpMethod: DELETE
+      AuthorizationType: NONE
+      ApiKeyRequired: true
+      RequestParameters:
+        method.request.path.id: true
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteNoteFunction.Arn}/invocations'
+      MethodResponses:
+        - StatusCode: 204
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # OPTIONS para CORS
+  OptionsNotesMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NotesResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  OptionsNoteIdMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref NoteIdResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,PUT,DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+
+  # Deployment y Stage
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - PostNotesMethod
+      - GetNotesMethod
+      - GetNoteMethod
+      - PutNoteMethod
+      - DeleteNoteMethod
+      - OptionsNotesMethod
+      - OptionsNoteIdMethod
+    Properties:
+      RestApiId: !Ref RestApi
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref RestApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: prod
+
+Outputs:
+  ApiUrl:
+    Description: URL del API Gateway
+    Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiUrl'
+
+  ApiKey:
+    Description: API Key para autenticacion
+    Value: !Ref ApiKey
+
+  DeploymentBucket:
+    Description: Bucket S3 para subir código Lambda
+    Value: !Ref DeploymentBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-DeploymentBucket'
+
+  CreateNoteFunctionArn:
+    Description: ARN de CreateNoteFunction
+    Value: !GetAtt CreateNoteFunction.Arn
+
+  GetNoteFunctionArn:
+    Description: ARN de GetNoteFunction
+    Value: !GetAtt GetNoteFunction.Arn
+
+  ListNotesFunctionArn:
+    Description: ARN de ListNotesFunction
+    Value: !GetAtt ListNotesFunction.Arn
+
+  UpdateNoteFunctionArn:
+    Description: ARN de UpdateNoteFunction
+    Value: !GetAtt UpdateNoteFunction.Arn
+
+  DeleteNoteFunctionArn:
+    Description: ARN de DeleteNoteFunction
+    Value: !GetAtt DeleteNoteFunction.Arn
