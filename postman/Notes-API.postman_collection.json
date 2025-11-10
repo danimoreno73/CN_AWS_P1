@@ -1,0 +1,534 @@
+{
+	"info": {
+		"_postman_id": "0b5bab37-1b65-43cd-9138-a290c5efbfc9",
+		"name": "Notes API - AWS Practice",
+		"description": "Colección completa para probar la API de notas (Opción A: ECS y Opción B: Lambda)\n\n## Instrucciones de uso:\n\n1. Importar variables de entorno (Notes-API.postman_environment.json)\n2. Configurar `api_url` y `api_key` en las variables\n3. Ejecutar la colección completa o requests individuales\n4. Los tests validan automáticamente las respuestas\n\n## Flujo recomendado:\n\n1. Health Check\n2. Create Note (guarda note_id automáticamente)\n3. List Notes\n4. Get Note by ID\n5. Update Note\n6. Delete Note\n7. Verify Deletion",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49916412",
+		"_collection_link": "https://yaeres12-7955906.postman.co/workspace/Hola-Adios's-Workspace~add5f90c-f090-4c7c-8491-2be98175dc72/collection/49916412-0b5bab37-1b65-43cd-9138-a290c5efbfc9?action=share&source=collection_link&creator=49916412"
+	},
+	"item": [
+		{
+			"name": "Create Note",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"Response has note_id\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('note_id');",
+							"    ",
+							"    // Guardar note_id para usar en otros requests",
+							"    pm.environment.set(\"note_id\", jsonData.note_id);",
+							"});",
+							"",
+							"pm.test(\"Response has all required fields\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('title');",
+							"    pm.expect(jsonData).to.have.property('content');",
+							"    pm.expect(jsonData).to.have.property('tags');",
+							"    pm.expect(jsonData).to.have.property('created_at');",
+							"    pm.expect(jsonData).to.have.property('updated_at');",
+							"});",
+							"",
+							"pm.test(\"Title matches request\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var requestData = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(jsonData.title).to.eql(requestData.title);",
+							"});",
+							"",
+							"pm.test(\"Tags is an array\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.tags).to.be.an('array');",
+							"});",
+							"",
+							"pm.test(\"Timestamps are valid ISO 8601\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.created_at).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/);",
+							"    pm.expect(jsonData.updated_at).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/);",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 1000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Generar timestamp para título único",
+							"var timestamp = new Date().toISOString();",
+							"pm.environment.set(\"timestamp\", timestamp);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"Nota de prueba desde Postman - {{timestamp}}\",\n  \"content\": \"Esta nota fue creada automáticamente por la colección de Postman para probar el endpoint de creación.\",\n  \"tags\": [\"postman\", \"test\", \"automated\"]\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/notes",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes"
+					]
+				},
+				"description": "Crea una nueva nota.\n\n**Body (JSON):**\n- `title` (string, required): Título de la nota (1-200 chars)\n- `content` (string, required): Contenido de la nota (1-10000 chars)\n- `tags` (array, optional): Lista de tags (max 10, cada uno max 50 chars)\n\n**Response (201):**\n- Retorna la nota creada con `note_id`, `created_at` y `updated_at`"
+			},
+			"response": []
+		},
+		{
+			"name": "List All Notes",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response is an array\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an('array');",
+							"});",
+							"",
+							"pm.test(\"Array contains at least one note\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.be.at.least(1);",
+							"});",
+							"",
+							"pm.test(\"Each note has required fields\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    jsonData.forEach(function(note) {",
+							"        pm.expect(note).to.have.property('note_id');",
+							"        pm.expect(note).to.have.property('title');",
+							"        pm.expect(note).to.have.property('content');",
+							"        pm.expect(note).to.have.property('tags');",
+							"        pm.expect(note).to.have.property('created_at');",
+							"        pm.expect(note).to.have.property('updated_at');",
+							"    });",
+							"});",
+							"",
+							"pm.test(\"Created note is in the list\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var noteId = pm.environment.get(\"note_id\");",
+							"    ",
+							"    var found = jsonData.some(function(note) {",
+							"        return note.note_id === noteId;",
+							"    });",
+							"    ",
+							"    pm.expect(found).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 1500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(1500);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/notes",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes"
+					]
+				},
+				"description": "Lista todas las notas.\n\n**Response (200):**\n- Array de objetos nota\n- Cada nota contiene todos los campos (note_id, title, content, tags, created_at, updated_at)"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Note by ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has all fields\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('note_id');",
+							"    pm.expect(jsonData).to.have.property('title');",
+							"    pm.expect(jsonData).to.have.property('content');",
+							"    pm.expect(jsonData).to.have.property('tags');",
+							"    pm.expect(jsonData).to.have.property('created_at');",
+							"    pm.expect(jsonData).to.have.property('updated_at');",
+							"});",
+							"",
+							"pm.test(\"Note ID matches requested ID\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var requestedId = pm.environment.get(\"note_id\");",
+							"    pm.expect(jsonData.note_id).to.eql(requestedId);",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/notes/{{note_id}}",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes",
+						"{{note_id}}"
+					]
+				},
+				"description": "Obtiene una nota específica por su ID.\n\n**Path Parameter:**\n- `id` (string): UUID de la nota\n\n**Response (200):**\n- Objeto nota completo\n\n**Response (404):**\n- Si la nota no existe"
+			},
+			"response": []
+		},
+		{
+			"name": "Update Note",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Title was updated\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var requestData = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(jsonData.title).to.eql(requestData.title);",
+							"});",
+							"",
+							"pm.test(\"updated_at is different from created_at\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.updated_at).to.not.eql(jsonData.created_at);",
+							"});",
+							"",
+							"pm.test(\"Note ID remains the same\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var originalId = pm.environment.get(\"note_id\");",
+							"    pm.expect(jsonData.note_id).to.eql(originalId);",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 1000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"Nota ACTUALIZADA desde Postman\",\n  \"content\": \"El contenido también fue actualizado para probar el endpoint PUT.\",\n  \"tags\": [\"postman\", \"test\", \"updated\"]\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/notes/{{note_id}}",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes",
+						"{{note_id}}"
+					]
+				},
+				"description": "Actualiza una nota existente.\n\n**Path Parameter:**\n- `id` (string): UUID de la nota\n\n**Body (JSON):**\n- `title` (string, optional): Nuevo título\n- `content` (string, optional): Nuevo contenido\n- `tags` (array, optional): Nuevos tags\n\n**Response (200):**\n- Retorna la nota actualizada con `updated_at` modificado\n\n**Response (404):**\n- Si la nota no existe"
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Note",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 204\", function () {",
+							"    pm.response.to.have.status(204);",
+							"});",
+							"",
+							"pm.test(\"Response body is empty\", function () {",
+							"    pm.expect(pm.response.text()).to.eql(\"\");",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/notes/{{note_id}}",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes",
+						"{{note_id}}"
+					]
+				},
+				"description": "Elimina una nota.\n\n**Path Parameter:**\n- `id` (string): UUID de la nota\n\n**Response (204):**\n- Sin contenido (eliminación exitosa)\n\n**Response (404):**\n- Si la nota no existe"
+			},
+			"response": []
+		},
+		{
+			"name": "Verify Deletion",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});",
+							"",
+							"pm.test(\"Response contains error message\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('error');",
+							"    pm.expect(jsonData.error).to.include('no encontrada');",
+							"});",
+							"",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/notes/{{note_id}}",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes",
+						"{{note_id}}"
+					]
+				},
+				"description": "Verifica que la nota fue eliminada correctamente.\n\nIntenta obtener la nota que acabamos de eliminar. Debe retornar 404."
+			},
+			"response": []
+		},
+		{
+			"name": "Create Note - Invalid (No Title)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 400\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"",
+							"pm.test(\"Response contains error\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('error');",
+							"});",
+							"",
+							"pm.test(\"Error mentions validation\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(JSON.stringify(jsonData).toLowerCase()).to.include('title');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"content\": \"Nota sin título para probar validación\",\n  \"tags\": [\"test\"]\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/notes",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes"
+					]
+				},
+				"description": "Test de validación: Intenta crear una nota sin título.\n\nDebe retornar 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "Get Note - Not Found",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});",
+							"",
+							"pm.test(\"Response contains error\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('error');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "{{api_key}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_url}}/notes/00000000-0000-0000-0000-000000000000",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"notes",
+						"00000000-0000-0000-0000-000000000000"
+					]
+				},
+				"description": "Test: Intenta obtener una nota con un ID que no existe.\n\nDebe retornar 404 Not Found."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Script global que se ejecuta antes de cada request",
+					"console.log('Executing request:', pm.info.requestName);",
+					"console.log('API URL:', pm.environment.get('api_url'));",
+					"console.log('API Key:', pm.environment.get('api_key') ? '***' : 'NOT SET');"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Script global que se ejecuta después de cada request",
+					"",
+					"pm.test(\"Content-Type header is present\", function () {",
+					"    pm.response.to.have.header(\"Content-Type\");",
+					"});",
+					"",
+					"pm.test(\"CORS header is present\", function () {",
+					"    pm.response.to.have.header(\"Access-Control-Allow-Origin\");",
+					"});",
+					"",
+					"console.log('Response time:', pm.response.responseTime, 'ms');",
+					"console.log('Response status:', pm.response.code);"
+				]
+			}
+		}
+	]
+}
