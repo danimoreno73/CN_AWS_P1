@@ -1,0 +1,90 @@
+graph TB
+    subgraph Internet["🌐 Internet"]
+        User["👤 Usuario"]
+        Developer["💻 Desarrollador"]
+    end
+
+    subgraph AWS["☁️ AWS Cloud - Región us-east-1"]
+        subgraph VPC["🔷 VPC (Red Virtual Privada)"]
+            subgraph PublicSubnet["🟢 Subred Pública (Accesible desde Internet)"]
+                APIGateway["🚪 API Gateway<br/>───────<br/>REST API<br/>Único Punto de Entrada<br/>API Key + CORS"]
+            end
+
+            subgraph PrivateSubnet["🔵 Subred Privada (Sin Acceso Directo)"]
+                VPCLink["🔗 VPC Link<br/>───────<br/>Túnel Privado"]
+                
+                NLB["⚖️ Network Load Balancer<br/>───────<br/>Esquema: interno<br/>Puerto: 8080"]
+                
+                ECS["🐋 ECS Fargate<br/>───────<br/>Contenedor Docker<br/>Flask App (Python 3.11)<br/>Puerto: 8080"]
+            end
+        end
+
+        subgraph Services["🔧 Servicios AWS Red Privada"]
+            ECR["📦 Amazon ECR<br/>───────<br/>Repositorio Docker<br/>Imagen: notes-app:latest"]
+            
+            DynamoDB["🗄️ DynamoDB<br/>───────<br/>Tabla: Notes<br/>PK: note_id<br/>Modo: PAY_PER_REQUEST"]
+            
+            IAM["🔐 IAM Role<br/>───────<br/>LabRole<br/>Permisos ECS + DynamoDB"]
+            
+            CloudWatch["📊 CloudWatch<br/>───────<br/>Logs: /ecs/notes-service<br/>Métricas de contenedor"]
+        end
+    end
+
+    subgraph Pipeline["🚀 Pipeline - Opción A"]
+        Source["📝 Código Fuente<br/>───────<br/>app-ecs/main.py<br/>DockerFile<br/>requirements.txt"]
+        
+        Build["🔨 Docker Build<br/>───────<br/>docker build -t notes-app<br/>Imagen: python:3.11-slim<br/>+ Flask + Boto3"]
+        
+        Deploy["🎯 CloudFormation<br/>───────<br/>02-ecr.yml<br/>03-ecs-option-a.yml<br/>Scripts: deploy-*.py"]
+    end
+
+    %% === FLUJO USUARIO (RUNTIME) ===
+    User ==>|"🔒 HTTPS + API Key<br/>(Única Entrada)"| APIGateway
+    APIGateway -->|"HTTP Proxy<br/>via VPC Link"| VPCLink
+    VPCLink -->|"Conexión Privada"| NLB
+    NLB -->|"Balanceo TCP:8080"| ECS
+    ECS -->|"Boto3 SDK<br/>CRUD Operations"| DynamoDB
+
+    %% === DEPENDENCIAS ===
+    ECS -.->|"Pull imagen<br/>al iniciar tarea"| ECR
+    IAM -.->|"Concede permisos<br/>a ECS Task"| ECS
+    IAM -.->|"Permite acceso"| DynamoDB
+    ECS -.->|"Envía logs<br/>de aplicación"| CloudWatch
+    APIGateway -.->|"Métricas API"| CloudWatch
+
+    %% === PIPELINE (BUILD & DEPLOY) ===
+    Developer -.->|"Git Push"| Source
+    Source --> Build
+    Build -->|"push-image.py<br/>Sube imagen"| ECR
+    Deploy -->|"Crea infraestructura"| VPC
+    Deploy -->|"Configura permisos"| IAM
+
+    %% === BLOQUEOS DE SEGURIDAD ===
+    User x-.-x|"❌ BLOQUEADO<br/>Sin ruta directa"| PrivateSubnet
+    User x-.-x|"❌ BLOQUEADO<br/>Sin ruta directa"| Services
+
+    %% Estilos
+    classDef internet fill:#e3f2fd,stroke:#1976d2,stroke-width:4px
+    classDef publicZone fill:#c8e6c9,stroke:#388e3c,stroke-width:3px
+    classDef privateZone fill:#ffccbc,stroke:#d84315,stroke-width:3px
+    classDef gateway fill:#ff9900,stroke:#232f3e,stroke-width:4px,color:#000
+    classDef network fill:#7cb342,stroke:#558b2f,stroke-width:3px,color:#fff
+    classDef compute fill:#ff6b35,stroke:#c44400,stroke-width:3px,color:#fff
+    classDef storage fill:#1565c0,stroke:#0d47a1,stroke-width:2px,color:#fff
+    classDef database fill:#4a148c,stroke:#6a1b9a,stroke-width:2px,color:#fff
+    classDef security fill:#c62828,stroke:#b71c1c,stroke-width:2px,color:#fff
+    classDef monitor fill:#ff9800,stroke:#e65100,stroke-width:2px,color:#fff
+    classDef pipeline fill:#6a1b9a,stroke:#4a148c,stroke-width:2px,color:#fff
+    
+    class Internet internet
+    class User,Developer internet
+    class PublicSubnet publicZone
+    class PrivateSubnet,Services privateZone
+    class APIGateway gateway
+    class VPCLink,NLB network
+    class ECS compute
+    class ECR storage
+    class DynamoDB database
+    class IAM security
+    class CloudWatch monitor
+    class Source,Build,Deploy pipeline

@@ -1,0 +1,83 @@
+graph TB
+    subgraph Internet["🌐 Internet"]
+        User["👤 Usuario"]
+        Developer["💻 Desarrollador"]
+    end
+
+    subgraph AWS["☁️ AWS Cloud - Región us-east-1"]
+        subgraph VPC["🔷 VPC (Red Virtual Privada)"]
+            subgraph PublicSubnet["🟢 Subred Pública (Accesible desde Internet)"]
+                APIGateway["🚪 API Gateway<br/>───────<br/>REST API<br/>Único Punto de Entrada<br/>API Key + CORS<br/>Integración: AWS_PROXY"]
+            end
+
+            subgraph PrivateSubnet["🔵 Subred Privada (Sin Acceso Directo)"]
+                Lambda["⚡ Funciones Lambda<br/>───────<br/>5 funciones independientes:<br/>• CrearNota (POST /notes)<br/>• ObtenerNota (GET /notes/{id})<br/>• ListarNotas (GET /notes)<br/>• ActualizarNota (PUT /notes/{id})<br/>• EliminarNota (DELETE /notes/{id})<br/>───────<br/>Python 3.11 | 128-256MB"]
+            end
+        end
+
+        subgraph Services["🔧 Servicios AWS (Red Privada)"]
+            S3["🗂️ Amazon S3<br/>───────<br/>Bucket: notes-lambda-deployment<br/>Código Lambda (.zip files)"]
+            
+            DynamoDB["🗄️ DynamoDB<br/>───────<br/>Tabla: Notes<br/>PK: note_id<br/>Modo: PAY_PER_REQUEST"]
+            
+            IAM["🔐 IAM Role<br/>───────<br/>LabRole<br/>Permisos Lambda + DynamoDB"]
+            
+            CloudWatch["📊 CloudWatch<br/>───────<br/>Logs: /aws/lambda/*<br/>Métricas por función"]
+        end
+    end
+
+    subgraph Pipeline["🚀 Pipeline - Opción B"]
+        Source["📝 Código Fuente<br/>───────<br/>app-lambda/*/handler.py<br/>shared/ (models + utils)<br/>requirements.txt"]
+        
+        Build["📦 Lambda Package<br/>───────<br/>package-lambdas.py<br/>Crea 5 archivos .zip<br/>+ dependencias + shared/"]
+        
+        Deploy["🎯 CloudFormation<br/>───────<br/>04-lambda-option-b.yml<br/>Scripts: deploy-lambda.py<br/>Sube código a S3"]
+    end
+
+    %% === FLUJO USUARIO (RUNTIME) ===
+    User ==>|"🔒 HTTPS + API Key<br/>(Única Entrada)"| APIGateway
+    
+    APIGateway -->|"Endpoints CRUD<br/>POST/GET/PUT/DELETE"| Lambda
+    
+    Lambda -->|"Operaciones DynamoDB<br/>PutItem/GetItem/Scan/UpdateItem/DeleteItem"| DynamoDB
+
+    %% === DEPENDENCIAS ===
+    Lambda -.->|"Carga código<br/>al ejecutar"| S3
+    IAM -.->|"Concede permisos"| Lambda
+    IAM -.->|"Permite acceso"| DynamoDB
+    Lambda -.->|"Envía logs"| CloudWatch
+    APIGateway -.->|"Métricas API"| CloudWatch
+
+    %% === PIPELINE (BUILD & DEPLOY) ===
+    Developer -.->|"Git Push"| Source
+    Source --> Build
+    Build -->|"Sube 5 archivos .zip"| S3
+    Deploy -->|"Crea infraestructura:<br/>• 5 funciones Lambda<br/>• API Gateway<br/>• Permisos IAM"| AWS
+
+    %% === BLOQUEOS DE SEGURIDAD ===
+    User x-.-x|"❌ BLOQUEADO<br/>Sin ruta directa"| PrivateSubnet
+    User x-.-x|"❌ BLOQUEADO<br/>Sin ruta directa"| Services
+
+    %% Estilos
+    classDef internet fill:#e3f2fd,stroke:#1976d2,stroke-width:4px
+    classDef publicZone fill:#c8e6c9,stroke:#388e3c,stroke-width:3px
+    classDef privateZone fill:#ffccbc,stroke:#d84315,stroke-width:3px
+    classDef gateway fill:#ff9900,stroke:#232f3e,stroke-width:4px,color:#000
+    classDef lambda fill:#ff9900,stroke:#e65100,stroke-width:3px,color:#000
+    classDef storage fill:#1565c0,stroke:#0d47a1,stroke-width:2px,color:#fff
+    classDef database fill:#4a148c,stroke:#6a1b9a,stroke-width:2px,color:#fff
+    classDef security fill:#c62828,stroke:#b71c1c,stroke-width:2px,color:#fff
+    classDef monitor fill:#ff9800,stroke:#e65100,stroke-width:2px,color:#fff
+    classDef pipeline fill:#6a1b9a,stroke:#4a148c,stroke-width:2px,color:#fff
+    
+    class Internet internet
+    class User,Developer internet
+    class PublicSubnet publicZone
+    class PrivateSubnet,Services privateZone
+    class APIGateway gateway
+    class Lambda lambda
+    class S3 storage
+    class DynamoDB database
+    class IAM security
+    class CloudWatch monitor
+    class Source,Build,Deploy pipeline
